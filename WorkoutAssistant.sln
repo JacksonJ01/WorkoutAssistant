@@ -1,0 +1,23 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33205.214
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "WorkoutAssistant", "WorkoutAssistant\WorkoutAssistant.pyproj", "{65A641D6-3506-460B-9D9A-2A6B5818698A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{65A641D6-3506-460B-9D9A-2A6B5818698A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{65A641D6-3506-460B-9D9A-2A6B5818698A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {741BB780-3A23-4043-B46E-5F2FBBEBB1AC}
+	EndGlobalSection
+EndGlobal
