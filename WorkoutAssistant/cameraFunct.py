@@ -1,3 +1,4 @@
+from pickle import FALSE
 from cv2 import resize, imshow, error, putText, COLOR_BGR2RGB, FILLED, \
     destroyAllWindows, FONT_HERSHEY_PLAIN, cvtColor, circle, waitKey, VideoCapture
 import mediapipe as mp
@@ -13,7 +14,6 @@ def readImg(video, pose, drawLM, exName, showInterest=False, showDots=False,
         img = resize(img, (900, 500))
     except error:
             pass
-
     if not returned:
         return
 
@@ -27,7 +27,6 @@ def readImg(video, pose, drawLM, exName, showInterest=False, showDots=False,
             return returned, img, assumption, exName, detectRepetitions(confirmedExercise, leftAngles, rightAngles, allLocations, exName), trackAngles(leftAngles, rightAngles), allLocations
         else:
             assumption, exName = detectExercise(leftAngles, rightAngles, locationsOfInterest)
-
     except TypeError:
         pass
 
@@ -45,7 +44,9 @@ def findLandmarks(img, pose):
 
 # _____________________________________________________________________________
 def getLandmarkLocations(img, drawLM, results, showInterest=False, showDots=False, showLines=False):
-    """"""
+    """
+
+    """
 
     locationsOfInterests = []
     allLocations = []
@@ -61,7 +62,7 @@ def getLandmarkLocations(img, drawLM, results, showInterest=False, showDots=Fals
             
 
             h, w, c = img.shape
-            xcor, ycor, zcor, vis = int(info.x * w), int(info.y * h), info.z, info.visibility
+            xcor, ycor, zcor, vis = int(info.x * w), int(info.y * h), int(info.z * c), info.visibility
             allLocations.append((num, xcor, ycor, zcor, vis))
 
             if num in [0, 11, 12, 13, 14, 15, 16,
@@ -76,15 +77,6 @@ def getLandmarkLocations(img, drawLM, results, showInterest=False, showDots=Fals
 
 # _____________________________________________________________________________
 def calculateAngle(img, locationsOfInterest, showText=False):
-    """"""
-    # 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12,
-    # 0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28
-    
-    # Nose 0,
-    # leftShoulder 11, leftElbow 13, leftWrist 15,
-    # rightShoulder 12, rightElbow 14, rightWrist 16,
-    # leftHip 23, leftKnee 25, leftAnkle 27,
-    # rightHip 24, rightKnee 26, rightAnkle 28
 
     leftAngles = []
     rightAngles = []
@@ -131,10 +123,10 @@ def calculateAngle(img, locationsOfInterest, showText=False):
         except TypeError:
             pass
 
-    #Elbow angles     | 1, 2
-    #Shoulder angles  | 3, 4
-    #Knee angles      | 7, 8
-    #Hip angles#      | 9, 10
+        #Elbow angles     | 1, 2
+        #Shoulder angles  | 3, 4
+        #Knee angles      | 7, 8
+        #Hip angles#      | 9, 10
     
     try:
         leftAngles[0], leftAngles[1] = leftAngles[1], leftAngles[0]
@@ -148,8 +140,7 @@ def calculateAngle(img, locationsOfInterest, showText=False):
         #Elbow angles     | 1, 2
         #Hip angles#      | 9, 10
         #Knee angles      | 7, 8
-        print(leftAngles, rightAngles)
-
+        #print(leftAngles, rightAngles)
 
         return img, leftAngles, rightAngles
 
@@ -196,7 +187,16 @@ def checkVisibility(leftVisibility: list, rightVisibility: list):
 
 # _____________________________________________________________________________
 class Exercise:
-    """"""
+    """
+    This is the Exercise Class:
+    The Attributes in the 8 Locations of interest are represented as tuples here
+    (minimum expected angle, maximum EA, target EA)
+
+    Bicep Curls and Single Arm Bicep Curls both use the same base angles, 
+     so that distinction is made with the Boolean mirrored variable
+    
+    The Specific Positioning is how I will check these exercises in the trackLocation function 
+     """
 
     def __init__(self, name,
                  lpit, lelbow, lhip, lknee,
@@ -217,143 +217,123 @@ class Exercise:
 
     def exerciseRightAngles(self):
         return self.rightAngles
+    
+    
+def trackLocation(specifcPositioning, loc: list):
+    """
+    Loc:
+    # 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12,
+    # 0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28
 
-"""
-# 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12,
-# 0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28
+    Elbow Angle, Shoulder Angle, Hip Angle, Knee Angle
 
-Elbow Angle, Shoulder Angle, Hip Angle, Knee Angle
+    Nose 0, 
+    0
+    leftShoulder 11, leftElbow 13, leftWrist 15,
+    1, 3, 5
+    rightShoulder 12, rightElbow 14, rightWrist 16,
+    2, 4, 6
+    leftHip 23, leftKnee 25, leftAnkle 27,
+    7, 9, 11
+    rightHip 24, rightKnee 26, rightAnkle 28
+    8, 10, 12
 
-Nose 0, 
-0
-leftShoulder 11, leftElbow 13, leftWrist 15,
-1, 2, 3
-rightShoulder 12, rightElbow 14, rightWrist 16,
-4, 5, 6
-leftHip 23, leftKnee 25, leftAnkle 27,
-7, 8, 9
-rightHip 24, rightKnee 26, rightAnkle 28
-10, 11, 12
+    (num, xcor, ycor, zcor, vis)
 
-(num, xcor, ycor, zcor, vis)
+    """
+    checking = False
+    for pos in loc:
+        if specifcPositioning == 0:
+            if (pos[0] % 2 != 0) and (pos[0] != 27):
+                if loc[12][1] <= pos[1]:
+                    pass
+            elif (pos[0] % 2 == 0) and (pos[0] != 28):
+                if pos[1] <= loc[11][1]:
+                    pass
+        
+            pass
+        if specifcPositioning == 1:
+            pass
+        if specifcPositioning == 2:
+            pass
+        if specifcPositioning == 3:
+            pass
+        if specifcPositioning == 4:
+            pass
+        if specifcPositioning == 5:
+            pass
+        if specifcPositioning == 6:
+            pass
+        if specifcPositioning == 7:
+            pass
+        if specifcPositioning == 8:
+            pass
+        if specifcPositioning == 9:
+            pass
+        if specifcPositioning == 10:
+            pass
 
-"""
-def trackLocation(exerciseName, loc: list):
-    for exercise in exercises:
-        #
-    pass
+
+
+    if checking is False:
+        return False
+    else:
+        return True
 
 abductorLegRaises = Exercise("Abductor Leg Raises",
                              (0, 180, 180), (0, 180, 180), (90, 180, 150), (160, 180, 180),
                              (0, 180, 180), (0, 180, 180), (90, 180, 135), (160, 180, 180),
-                             False
-                             1)
+                             False, 0)
 
 barbellSquats = Exercise("Barbell Squats",
                          (75, 110, 110), (15, 110, 110), (0, 150, 150), (0, 150, 150),
                          (15, 110, 110), (15, 110, 110), (0, 150, 150), (0, 150, 150),
-                         True,
-                         ["", "", "", ""]
-                         2)
+                         True, 1)
 
 bicepCurls = Exercise("Bicep Curls",
                       (0, 110, 75), (0, 45, 45), (120, 180, 180), (120, 180, 180),
                       (0, 110, 75), (0, 45, 45), (120, 180, 180), (120, 180, 180),
-                      True)
+                      True, 2)
 
 deltoidArmRaises = Exercise("Deltoid Arm Raises",
                         (45, 110, 90), (150, 180, 180), (150, 180, 180), (120, 180, 180),
                         (45, 110, 90), (150, 180, 180), (150, 180, 180), (120, 180, 180),
-                        True,
-                        ["", "", "", ""]
-                        )
-
-"""
-# 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12,
-# 0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28
-
-Elbow Angle, Shoulder Angle, Hip Angle, Knee Angle
-
-Nose 0, 
-0
-leftShoulder 11, leftElbow 13, leftWrist 15,
-1, 2, 3
-rightShoulder 12, rightElbow 14, rightWrist 16,
-4, 5, 6
-leftHip 23, leftKnee 25, leftAnkle 27,
-7, 8, 9
-rightHip 24, rightKnee 26, rightAnkle 28
-10, 11, 12
-
-(num, xcor, ycor, zcor, vis)
-
-"""
-
+                        True, 3)
 
 frontLatRaises = Exercise("Front Lat Raises",
                         (0, 110, 90), (120, 180, 180), (120, 180, 180), (120, 180, 180),
                         (0, 110, 90), (120, 180, 180), (120, 180, 180), (120, 180, 180),
-                        True
-                        )
+                        True, 4)
 
 gobletSquats = Exercise("Goblet Squats",
                         (0, 30, 30), (0, 50, 50), (0, 150, 150), (0, 150, 150),
                         (0, 30, 30), (0, 50, 50), (0, 150, 150), (0, 150, 150),
-                        True
-                        )
+                        True, 5)
 
 shoulderPress = Exercise("Shoulder Press",
                         (30, 180, 110), (60, 110, 90), (120, 180, 180), (120, 180, 180),
                         (30, 180, 110), (60, 110, 90), (120, 180, 180), (120, 180, 180),
-                        True
-                        )
-
-"""
-# 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12,
-# 0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28
-
-Elbow Angle, Shoulder Angle, Hip Angle, Knee Angle
-
-Nose 0, 
-0
-leftShoulder 11, leftElbow 13, leftWrist 15,
-1, 2, 3
-rightShoulder 12, rightElbow 14, rightWrist 16,
-4, 5, 6
-leftHip 23, leftKnee 25, leftAnkle 27,
-7, 8, 9
-rightHip 24, rightKnee 26, rightAnkle 28
-10, 11, 12
-
-(num, xcor, ycor, zcor, vis)
-
-"""
-
-
+                        True, 6)
 
 singleArmBicepCurls = Exercise("Single Arm Bicep Curls",
                                (0, 110, 75), (0, 45, 45), (120, 180, 180), (120, 180, 180),
-                               (0, 110, 75), (0, 45, 45), (120, 180, 180), (120, 180, 180)
-                               )
+                               (0, 110, 75), (0, 45, 45), (120, 180, 180), (120, 180, 180),
+                               False, 7)
+
+singleArmDeltoidRaises = Exercise("Single Arm Deltoid Raises",
+                        (45, 110, 90), (150, 180, 180), (150, 180, 180), (120, 180, 180),
+                        (45, 110, 90), (150, 180, 180), (150, 180, 180), (120, 180, 180),
+                        False, 8)
 
 singleArmFrontLatRaises = Exercise("Single Arm Front Lat Raises",
                         (0, 110, 90), (120, 180, 180), (120, 180, 180), (120, 180, 180),
                         (0, 110, 90), (120, 180, 180), (120, 180, 180), (120, 180, 180),
-                        False
-                        )
-
-
-singleDeltoidArmRaises = Exercise("Single Arm Deltoid Raises",
-                        (45, 110, 90), (150, 180, 180), (150, 180, 180), (120, 180, 180),
-                        (45, 110, 90), (150, 180, 180), (150, 180, 180), (120, 180, 180),
-                        False
-                        )
+                        False, 9)
 
 singleArmShoulderPress = Exercise("Single Arm Shoulder Press",
                         (30, 180, 110), (60, 180, 90), (120, 180, 180), (120, 180, 180),
                         (30, 180, 110), (60, 180, 90), (120, 180, 180), (120, 180, 180),
-                        True
-                        )
+                        False, 10)
 
 
 exercises = {abductorLegRaises: [abductorLegRaises.exerciseLeftAngles(),
@@ -380,16 +360,16 @@ exercises = {abductorLegRaises: [abductorLegRaises.exerciseLeftAngles(),
              singleArmBicepCurls: [singleArmBicepCurls.exerciseLeftAngles(),
                                    singleArmBicepCurls.exerciseRightAngles()],
              
+             singleArmDeltoidRaises: [singleArmDeltoidRaises.exerciseLeftAngles(),
+                                      singleArmDeltoidRaises.exerciseRightAngles()],
+             
              singleArmFrontLatRaises: [singleArmFrontLatRaises.exerciseLeftAngles(),
                                        singleArmFrontLatRaises.exerciseRightAngles()],
 
-             singleDeltoidArmRaises: [singleDeltoidArmRaises.exerciseLeftAngles(),
-                                      singleDeltoidArmRaises.exerciseRightAngles()],
 
              singleArmShoulderPress: [singleArmShoulderPress.exerciseLeftAngles(),
                                       singleArmShoulderPress.exerciseRightAngles()]
              }
-
 
 # _____________________________________________________________________________
 def detectExercise(leftAngles, rightAngles, loc):
@@ -409,34 +389,9 @@ def detectExercise(leftAngles, rightAngles, loc):
 
     The third [] takes you to the:
     Minimum range: [0]
-    Maximum range: [1]
-
-    
-    _________
-
-
-    # 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12,
-    # 0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28
-
-    Elbow Angle, Shoulder Angle, Hip Angle, Knee Angle
-
-    Nose 0, 
-    0
-    leftShoulder 11, leftElbow 13, leftWrist 15,
-    1, 2, 3
-    rightShoulder 12, rightElbow 14, rightWrist 16,
-    4, 5, 6
-    leftHip 23, leftKnee 25, leftAnkle 27,
-    7, 8, 9
-    rightHip 24, rightKnee 26, rightAnkle 28
-    10, 11, 12
-
-    (num, xcor, ycor, zcor, vis)
-
+    Maximum range: [1]  
     """
-
-
-
+ 
     potentialExercises = []
     mirrored = {}
     angles = leftAngles, rightAngles
@@ -445,6 +400,11 @@ def detectExercise(leftAngles, rightAngles, loc):
         try:
             mirrored[exercise.name] = [False, False]
             for sub in range(2):
+                # The name of the exercise is stored in the mirrored dictionary
+                #  As the loop iterates twice
+                #   If the currentAngle is between that of the exercise being checked, 
+                #    the left or right False will become True
+                #   That tells me if the exercise being done is, well, mirrored 
                 if (exercises[exercise][sub][0][0] <= angles[sub][0][1] <= exercises[exercise][sub][0][1] and
                         exercises[exercise][sub][1][0] <= angles[sub][1][1] <= exercises[exercise][sub][1][1] and
                         exercises[exercise][sub][2][0] <= angles[sub][2][1] <= exercises[exercise][sub][2][1] and
@@ -457,9 +417,14 @@ def detectExercise(leftAngles, rightAngles, loc):
 
     for exer in potentialExercises:
 
-        # check if exer returns True in the trackLocation section
-
-
+        # check if exer returns True in the trackLocation function
+        # If True it will pass
+        # If False it will remove that exercise
+        if trackLocation(exer.specificPositioning, loc):
+            pass
+        else:
+            pass
+    
         a, b = mirrored[exer.name]
         if exer.mirrored is True:
             if a == b:
@@ -474,6 +439,7 @@ def detectExercise(leftAngles, rightAngles, loc):
                 pass
 
     try:
+        # If there is more than one exercise in the list, then it will pass
         exName = potentialExercises[0]
         return exName.name, exName
     except IndexError:
@@ -489,16 +455,9 @@ def detectRepetitions(confirmedExercise, leftAngles, rightAngles, loc=None, exNa
 
         reps = [False, False]
         # Display for a visual of the angles at work
-#        paddedPrint = f"""
-#                |      Left Side      |      Right Side
-#Shoulder Angle  |  {padding(f'{_exName[0][0][0]} <= {currentAngle[0][1][1]} <= {_exName[0][0][2]}')}|  {padding(f'{_exName[1][0][0]} <= {currentAngle[1][1][1]} <= {_exName[1][0][2]}')}|
-#Elbow Angle     |  {padding(f'{_exName[0][1][0]} <= {currentAngle[0][0][1]} <= {_exName[0][1][2]}')}|  {padding(f'{_exName[1][1][0]} <= {currentAngle[1][0][1]} <= {_exName[1][1][2]}')}|
-#Hip Angle       |  {padding(f'{_exName[0][2][0]} <= {currentAngle[0][2][1]} <= {_exName[0][2][2]}')}|  {padding(f'{_exName[1][2][0]} <= {currentAngle[1][2][1]} <= {_exName[1][2][2]}')}|
-#Knee Angle      |  {padding(f'{_exName[0][3][0]} <= {currentAngle[0][3][1]} <= {_exName[0][3][2]}')}|  {padding(f'{_exName[1][3][0]} <= {currentAngle[1][3][1]} <= {_exName[1][3][2]}')}|"""
-
-        # print(paddedPrint)
-        majorPoints = [{"Shoulder": [currentAngle[0][1][1], currentAngle[1][1][1]]}, 
-                       {"Elbow": [currentAngle[0][0][1], currentAngle[1][0][1]]}, 
+#       
+        majorPoints = [{"Shoulder": [currentAngle[0][0][1], currentAngle[1][0][1]]}, 
+                       {"Elbow": [currentAngle[0][1][1], currentAngle[1][1][1]]}, 
                        {"Hip": [currentAngle[0][2][1], currentAngle[1][2][1]]}, 
                        {"Knee": [currentAngle[0][3][1], currentAngle[0][1][1]]}]
 
