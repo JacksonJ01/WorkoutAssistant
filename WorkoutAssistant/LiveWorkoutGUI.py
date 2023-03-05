@@ -1,52 +1,186 @@
 from speechFunct import analyzeResponse
-from cameraFunct import cvtColor, COLOR_BGR2RGB, error, fps, imshow, mp, readImg, terminateWindows, time, VideoCapture as VC, waitKey
 from basicImportInfo import *
-from PyQt5.QtGui import QImage, QPixmap
 
-workoutAngles = None
-currentWorkout = None
+
+currentRepCount = None  
+currentExercise = None
+currentAngles = None
 
 
 class WorkoutWindow(QWidget):
     switchToMenuWindow = pyqtSignal()
 
     def __init__(self):
-        global workoutAngles
-        global currentWorkout
-        self.CONTEXT = None
+        global currentExercise
+        global currentRepCount
+        global currentAngles
         QWidget.__init__(self)
         self.setWindowTitle('Workout Window')
-        self.setGeometry(winXPos, winYPos, winLength, winHeight)
+        #self.setGeometry(winXPos, winYPos, winLength, winHeight)
 
         layout = QGridLayout()
 
+
+        currentExercise = QLabel("Exercise: ____")
+        currentExercise.setAlignment(Qt.AlignCenter)
+        currentExercise.setStyleSheet("""
+        QLabel {
+            font-size: 25px;
+            font: bold italic "Times New Roman";
+            text-align: center;
+
+            min-height: 30px;
+            max-height: 50px;
+            min-width: 320px;
+            
+            border: 3px solid;
+            border-radius: 25%;
+
+            background-color: lightgray;
+            float:left;
+        }
+        """)
+        
+            #margin-top: 1px;
+        currentRepCount = QLabel("Rep Count: ____")
+        currentRepCount.setAlignment(Qt.AlignCenter)
+        currentRepCount.setStyleSheet("""
+        QLabel {
+            font-size: 25px;
+            font: bold italic "Times New Roman";
+
+            min-height: 30px;
+            max-height: 50px;
+            min-width: 320px;
+            
+            border: 3px solid;
+            border-radius: 25%;
+
+            background-color: lightgray;
+            text-align: center;
+        }
+        """)
+        currentAngles = QLabel("Within Range: ____")
+        currentAngles.setAlignment(Qt.AlignCenter)
+        currentAngles.setStyleSheet("""
+        QLabel {
+            font-size: 25px;
+            font: bold italic "Times New Roman";
+            text-align: center;
+
+            min-height: 30px;
+            max-height: 50px;
+            min-width: 320px;
+            
+            border: 3px solid;
+            border-radius: 25%;
+
+            background-color: lightgray;
+
+            float: right;
+        }
+        """)
+        
         self.videoLabel = QLabel(self)
         #self.videoLabel.move(280, 120)
         #self.videoLabel.resize(640, 480)
         th = Thread()
         th.changePixmap.connect(self.captureImage)
         th.start()
-        #self.show()
+        self.show()
+        self.videoLabel.setAlignment(Qt.AlignCenter)
+        self.videoLabel.setStyleSheet("""
+        QLabel {
+            min-height: 480px;
 
-        workoutAngles = QLabel("____")
-        currentWorkout = QLabel("____")
+            min-width: 720px;
+
+            border: 3px solid;
+
+            background-color: lightgray;
+
+            float: left;
+        }
+        """)
+            #border-radius: 25%;
 
         self.backButton = QPushButton('Back To Menu')
         self.backButton.clicked.connect(self.goToMenuWindow)
-        self.userInput = QLineEdit()
-        self.userInput.returnPressed.connect(self.goToAskChatBot)
+        self.backButton.setStyleSheet("""
+        QPushButton {
+            font-size: 20px;
+            font-family: "Times New Roman";
 
-        self.chatBotMessageHistory5 = QLabel("____")
-        self.chatBotMessageHistory4 = QLabel("____")
-        self.chatBotMessageHistory3 = QLabel("____")
-        self.chatBotMessageHistory2 = QLabel("____")
-        self.chatBotMessageHistory1 = QLabel("____")
+            min-height: 30px;
+            max-height: 50px;
+            min-width: 400px;
+            max-width: 400px;
 
-        self.addToLayout = [(self.videoLabel, 0, 0, 3, 4), (self.chatBotMessageHistory5, 0, 4, 1, 1),
-                            (self.chatBotMessageHistory4, 1, 4, 1, 1),
-                            (self.chatBotMessageHistory3, 2, 4, 1, 1),
-                            (workoutAngles, 3, 0, 1, 2), (currentWorkout, 3, 2, 1, 2), (self.chatBotMessageHistory2, 3, 4, 1, 1),
-                            (self.backButton, 4, 0, 1, 1), (self.userInput, 4, 1, 1, 2), (self.chatBotMessageHistory1, 4, 4, 1, 1)]
+            border: 1px solid;
+            border-radius: 8%;
+         
+            background-color: lightgray;
+        }
+        QPushButton:hover {
+            font-size: 25px;
+            font: bold italic "Times New Roman";
+
+            background-color: white;
+        }
+        """)
+
+        self.finishWorkout = QPushButton("Finish Workout")
+        self.finishWorkout.clicked.connect(self.goToFinishWorkout)
+        self.finishWorkout.setStyleSheet("""
+        QPushButton {
+            font-size: 20px;
+            font-family: "Times New Roman";
+
+            min-height: 30px;
+            max-height: 50px;
+            min-width: 400px;
+
+            border: 1px solid;
+            border-radius: 8%;
+         
+            background-color: lightgray;
+        }
+        QPushButton:hover {
+            font-size: 25px;
+            font: bold italic "Times New Roman";
+
+            background-color: white;
+        }
+        """)
+
+        showingLines = QPushButton("Show Target Angles")
+        showingLines.clicked.connect(self.goToFinishWorkout)
+        showingLines.setStyleSheet("""
+        QPushButton {
+            font-size: 20px;
+            font-family: "Times New Roman";
+
+            min-height: 30px;
+            max-height: 50px;
+            min-width: 400px;
+            max-width: 400px;
+
+            border: 1px solid;
+            border-radius: 8%;
+         
+            background-color: lightgray;
+        }
+        QPushButton:hover {
+            font-size: 25px;
+            font: bold italic "Times New Roman";
+
+            background-color: white;
+        }
+        """)
+        
+        self.addToLayout = [(currentExercise, 0, 0, 1, 1), (currentRepCount, 0, 1, 1, 1), (currentAngles, 0, 2, 1, 1), 
+                            (self.videoLabel, 1, 0, 1, 3),
+                            (self.backButton, 4, 0, 1, 1), (self.finishWorkout, 4, 1, 1, 1), (showingLines, 4, 2, 1, 1)]
         
         for x in self.addToLayout:
             layout.addWidget(x[0], x[1], x[2], x[3], x[4])
@@ -61,16 +195,15 @@ class WorkoutWindow(QWidget):
         terminateWindows(video)
         self.switchToMenuWindow.emit()
 
-    def goToAskChatBot(self):
-        self.chatBotMessageHistory5.setText(self.chatBotMessageHistory4.text())
-        self.chatBotMessageHistory4.setText(self.chatBotMessageHistory3.text())
-        self.chatBotMessageHistory3.setText(self.chatBotMessageHistory2.text())
-        self.chatBotMessageHistory2.setText(self.chatBotMessageHistory1.text())
+    def goToFinishWorkout(self):
+        pass
 
-        response, self.CONTEXT = analyzeResponse(self.userInput.text(), self.CONTEXT)
-        self.chatBotMessageHistory1.setText(response)
+    def goToShowLines(self):
+        if showingTarget is True:
+            showingTarget = False
+        else:
+            showingTarget = True
 
-        self.userInput.clear()
 
 repCount = 0
 video = None
@@ -78,6 +211,31 @@ class Thread(QThread):
     changePixmap = pyqtSignal(QImage)
 
     def run(self):
+        
+        def saveWorkout():
+            try:
+                if 2 <= self.repCount and exName.mirrored is False:
+                    self.repCount //= 2
+
+                if self.repCount > minimumRepCount:
+                    if exName.name not in exerciseDict:
+                        exerciseDict[exName.name] = self.repCount
+                    else:
+                        exerciseDict[str(exName.name) + "*"] = self.repCount
+                    self.repCount = 0
+
+                print(exerciseDict)
+
+            finally:
+                input("ENTER To Quit")
+                quit()
+
+        def pauseWorkout():
+            ent = input("ENTER 2 Resume")
+            if ent == "q":
+                quit()
+
+
         global defaultCam
         global video
         self.defaultCam = defaultCam
@@ -96,30 +254,43 @@ class Thread(QThread):
         #            "leftHip|LeftAnkle": [], "rightHip|rightAnkle": []}
 
         exerciseDict = {}
-        verificationTime = 2  # The program will take 2x seconds to verify the workout
+        verificationTime = .8  # The program will take 2x seconds to verify the workout
         startingPreparations = time()
         beginVerification = None
 
+        detected = False
         assumption = None
         assumptionMade = False
         known = False
-        confirmedExercise = ""  # "bicep curl"
 
         exercisesCompletedList = []
         exerciseCount = 0
         nOrLatch = False
-        self.repCount = 0
+        self.repCount = -1
 
         endWorkout = False
         exName = None
 
-        downTime = 5
+        downTime = 10
         currentDownTime = time()
         # firstTimeCheckBool = True
         minimumRepCount = 1
     
-        xLength = 720
-        yHeight = 480
+        xLength = 1080
+        yHeight = 720
+
+        #abductorLegRaises,
+        #barbellSquats,
+        #bicepCurls,                                    
+        #singleArmBicepCurls,
+        #deltoidArmRaises,
+        #singleArmDeltoidRaises,
+        #frontLatRaises,          
+        #singleArmFrontLatRaises,
+        #gobletSquats,
+        #shoulderPress,
+        #singleArmShoulderPress
+
         if self.defaultCam == 0:
             video = VC(0)
         elif self.defaultCam == (0, 1):
@@ -143,75 +314,94 @@ class Thread(QThread):
             video = VC("C:\\Users\\Big Boi J\\Downloads\\test8.gif")  # Front Squats
         elif self.defaultCam == 9:
             video = VC("C:\\Users\\Big Boi J\\Downloads\\test9.gif")
-
+        elif self.defaultCam == 11:
+            video = VC("C:\\Users\\Big Boi J\\source\\repos\\WorkoutAssistant\\WorkoutAssistant\\workoutTrainingVideos\\bicepCurls\\bicep0.mp4")
+        else:
+            video = VC("C:\\Users\\Big Boi J\\source\\repos\\WorkoutAssistant\\WorkoutAssistant\\workoutTrainingVideos\\allExercisesVideo\\allExercise.mp4")
+            
 
         video.set(3, xLength)
         video.set(4, yHeight)
 
-        global workoutAngles
-        global currentWorkout
-
-        while True: 
+        global currentExercise
+        global currentRepCount
+        global currentAngles
+        #input('Start')
+        #while True: 
+        while True:
+            #input("Next")
             try:
-                returned, img, assumption2, exName, \
-                repCompleted, trackedAngles, \
+                returned, img, detected, \
+                exName, repCompleted, \
                 allLocations = readImg(video, pose, drawLM, exName,
                                        showInterest=True, showDots=False,
-                                       showLines=True, showText=True, known=known,
-                                       confirmedExercise=confirmedExercise)
-                
-                workoutAngles.setText(repCompleted[1])
-                currentWorkout.setText(f"{confirmedExercise}: {self.repCount}")
-                
+                                       showLines=True, showText=True, known=known)
+
+                print(repCompleted)
                 # print(allLocations)
-                convertedLoc = []
+                #convertedLoc = []
                 # Loop to adjust the Y cords of the location
-                for cor in allLocations:
-                    new = cor[1], yHeight - cor[2], cor[3]
-                    convertedLoc.append(new)
+                #for cor in allLocations:
+                #    new = cor[1], yHeight - cor[2], cor[3]
+                    #convertedLoc.append(new)
 
                 # server.sendto(str.encode(str(convertedLoc)), serverAddressPort)
                 # print(convertedLoc)
 
-            except TypeError:
+            except TypeError as T:
+                print('Error:', T)
                 continue
-            except RuntimeError:
-                break
+            except RuntimeError as R:
+                print('Error:', R)
+                saveWorkout()
+            except error:
+                saveWorkout()
 
-            pTime = fps(img, pTime)
+
+            #pTime = fps(img, pTime)
             elapsedTime = time()
-
+            
             if known is True:
+                #input("Waiting")
                 # if firstTimeCheckBool is True:
                 #     firstTimeCheckBool = False
                     # currentDownTime = time()
 
-                # Here 09/17/22
-                print("\nWithin Repetition Target Range:", repCompleted)
+                try:
+                    currentExercise.setText(f"Exercise: {exName.name}") 
+                    currentRepCount.setText(f"Rep Count: {self.repCount}")
+                    currentAngles.setText(f"Within Range: {repCompleted}")
+                except AttributeError as a:
+                    print("Error:", a)
+                    pass
 
-                if repCompleted[0] is True and nOrLatch is False:
+                print("\nWithin Repetition Target Range:", repCompleted, nOrLatch)
+                print('\nDownTime', int(time()) - currentDownTime)
+                if repCompleted is True and nOrLatch is False:
                     self.repCount += 1
                     nOrLatch = True
-                    currentDownTime = int(time())
 
-                elif repCompleted[0] is False and nOrLatch is True:
-                    nOrLatch = False
+                elif repCompleted is not True and nOrLatch is True:
+                    if nOrLatch is True:
+                        currentDownTime = int(time())
+                        nOrLatch = False
 
-                if repCompleted[0] is False:
-                    if int(time()) - currentDownTime >= downTime:
+                if repCompleted is False:
+                    # Prevents the DownTime from entering; norLatch is True when the rep is completed, but downTime 
+                    if int(time()) - currentDownTime >= downTime and nOrLatch is not True:
                         known = False
                         assumptionMade = False
                         startingPreparations, currentDownTime = time(), time()
 
-                        if exName.mirrored is False:
-                            self.repCount /= 2
+                        if 2 <= self.repCount and exName.mirrored is False:
+                            self.repCount //= 2
 
                         if self.repCount > minimumRepCount:
-                            if confirmedExercise not in exerciseDict:
-                                exerciseDict[confirmedExercise] = self.repCount
+                            if exName.name not in exerciseDict:
+                                exerciseDict[exName.name] = self.repCount
                             else:
-                                exerciseDict[str(confirmedExercise) + "*"] = self.repCount
-                            self.repCount = 0
+                                exerciseDict[str(exName.name) + "*"] = self.repCount
+                            self.repCount = -1
 
                         # reset the values
                 print(exerciseDict)
@@ -220,55 +410,68 @@ class Thread(QThread):
             else:
                 # This allows the program to get an initial idea on what the exercise might be
                 # Once it makes this assumption, the computer will wait x amount of time before checking again
+                print(elapsedTime, '-', startingPreparations, '>', verificationTime)
                 if (elapsedTime - startingPreparations) > verificationTime and assumptionMade is False:
-
                     try:
                         if assumptionMade is False:
-                            assumption = assumption2
-                            print("First assumption:", assumption)
+                            assumption = exName
+                            print("First assumption:", [x.name for x in assumption])
                             assumptionMade = True
                             beginVerification = time()
-                    except IndexError or TypeError:
+                    except IndexError as I:
+                        assumptionMade = False
+                        print('Error:', I)
+                    except TypeError as T:
+                        print('Error:', T)
                         assumptionMade = False
 
                     # Once x amount of time passes, the computer will make it's second check
                     # If current assumption matches the prior assumption, then the exercise will be seen as known
 
                 if assumptionMade is True:
+                    print(elapsedTime, '-', beginVerification, '>', verificationTime)
                     if (elapsedTime - beginVerification) > verificationTime:
-                        print("\nTime Elapsed:", float(elapsedTime - beginVerification))
-                        print("assumption1:", assumption, " | assumption2:", assumption2)
+                        print("\nTime Elapsed Between Detection:", float(elapsedTime - beginVerification))
+                        print("assumption1:", [x.name for x in assumption], " | assumption2:", [x.name for x in exName])
                         try:
-                            if assumption == assumption2 and assumption2 is not None:
-                                confirmedExercise = assumption
-                                print("\nExercise Confirmed:", confirmedExercise, "\n")
-                                known = True
+                            if detected is False:
+                                assumptionMade = False
+                            else:
+                                try:
+                                    print(assumption, exName)
+                                    if exName == assumption or exName in assumption:
+                                        exName = exName[0]
+                                        print("\nExercise Confirmed:", exName.name, "\n")
+                                        known = True
+                                    # If the assumed workout doesn't match, then the process will start over
+                                    else:
+                                        assumption = exName
+                                        startingPreparations = time()
+                                        assumptionMade = False
+                                except TypeError:
+                                    assumption = exName
+                                    startingPreparations = time()
+                                    assumptionMade = False
 
                         except IndexError or TypeError:
-                            assumptionMade = False
-
-                        # If the assumed workout doesn't match, then the process will start over
-                        else:
-                            assumption = assumption2
+                            assumption = exName 
                             startingPreparations = time()
                             assumptionMade = False
 
             try:
+                #img = flip(img, 1)
                 #imshow("Picture", img)
                 pass
             except error:
                 pass
 
             if waitKey(1) & 0xFF == ord('q'):
-                if self.repCount > minimumRepCount:
-                    if confirmedExercise not in exerciseDict:
-                        exerciseDict[confirmedExercise] = self.repCount
-                    else:
-                        exerciseDict[str(confirmedExercise) + "*"] = self.repCount
-                    self.repCount = 0
+                pauseWorkout()
+                #saveWorkout()
 
-                print(exerciseDict)
-                quit()
+            
+            #if waitKey(1) & 0xFF == ord('p'):
+            #    pauseWorkout()
 
             if returned:
                 # https://stackoverflow.com/a/55468544/6622587
@@ -276,5 +479,5 @@ class Thread(QThread):
                 h, w, ch = rgbImage.shape
                 bytesPerLine = ch * w
                 convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
-                p = convertToQtFormat.scaled(winLength - 150, winHeight - 150, Qt.KeepAspectRatio)
+                p = convertToQtFormat.scaled(1080, 720, Qt.KeepAspectRatio)
                 self.changePixmap.emit(p)

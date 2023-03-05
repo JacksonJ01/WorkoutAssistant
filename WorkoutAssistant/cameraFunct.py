@@ -1,36 +1,40 @@
 from pickle import FALSE
-from cv2 import resize, imshow, error, putText, COLOR_BGR2RGB, FILLED, \
-    destroyAllWindows, FONT_HERSHEY_PLAIN, cvtColor, circle, waitKey, VideoCapture
+from cv2 import resize, imshow, error, putText, COLOR_BGR2RGB, flip, FILLED, \
+    destroyAllWindows, FONT_HERSHEY_PLAIN, cvtColor, circle, waitKey, VideoCapture as VC
 import mediapipe as mp
-from math import atan2, pi
 from time import time
+
+from math import atan2, pi
 
 
 def readImg(video, pose, drawLM, exName, showInterest=False, showDots=False,
-            showLines=False, showText=False, known=False, confirmedExercise=None):
+            showLines=False, showText=False, known=False):
     returned, img = video.read()
-
-    try:
-        img = resize(img, (900, 500))
-    except error:
-            pass
-    if not returned:
-        return
+    
+    #try:
+    #    img = resize(img, (900, 500))
+    #except error:
+    #        pass
+    #if not returned:
+    #    pass
 
     img, results = findLandmarks(img, pose)
     img, locationsOfInterest, allLocations = getLandmarkLocations(img, drawLM, results, showInterest, showDots,
                                                                   showLines)
-    assumption = None
+    detected = None
+    repC = False
     try:
         img, leftAngles, rightAngles = calculateAngle(img, locationsOfInterest, showText)
+        
         if known is True:
-            return returned, img, assumption, exName, detectRepetitions(confirmedExercise, leftAngles, rightAngles, allLocations, exName), trackAngles(leftAngles, rightAngles), allLocations
+            repC = detectRepetitions(leftAngles, rightAngles, exName)
+            #print(repC)
         else:
-            assumption, exName = detectExercise(leftAngles, rightAngles, locationsOfInterest)
+            detected, exName = detectExercise(leftAngles, rightAngles, locationsOfInterest)
     except TypeError:
         pass
 
-    return returned, img, assumption, exName, [False, None], None, allLocations
+    return returned, img, detected, exName, repC, allLocations
 
 
 # _____________________________________________________________________________
@@ -62,7 +66,7 @@ def getLandmarkLocations(img, drawLM, results, showInterest=False, showDots=Fals
             
 
             h, w, c = img.shape
-            xcor, ycor, zcor, vis = int(info.x * w), int(info.y * h), int(info.z * c), info.visibility
+            xcor, ycor, zcor, vis = int(info.x * w), int(info.y * h), (info.z * c), info.visibility
             allLocations.append((num, xcor, ycor, zcor, vis))
 
             if num in [0, 11, 12, 13, 14, 15, 16,
@@ -71,6 +75,7 @@ def getLandmarkLocations(img, drawLM, results, showInterest=False, showDots=Fals
 
                 if showDots is True or showInterest is True and num != 0:
                     circle(img, (xcor, ycor), 5, (0, 0, 0), FILLED)
+                    #displayText(img, str(num), (xcor, ycor), 2, (255, 0, 0))
 
     return img, locationsOfInterests, allLocations
 
@@ -112,13 +117,15 @@ def calculateAngle(img, locationsOfInterest, showText=False):
 
             if sub % 2 == 0:
                 #formatting the data to be saved in a list as a tuple element
-                rightAngles.append((sub, angle, locationsOfInterest[sub - 2][3]))
+                # The node point number, angle, visibilityw
+                rightAngles.append((sub, angle, locationsOfInterest[sub - 2][4]))
             else:
-                leftAngles.append((sub, angle, locationsOfInterest[sub - 2][3]))
+                leftAngles.append((sub, angle, locationsOfInterest[sub - 2][4]))
 
             # Display the angles on screen
             if showText is True:
-                img = displayText(img, str(angle), (x2, y2), 2, (255, 0, 0))
+                displayText(img, str(angle), (x2, y2), 2, (255, 0, 0))
+                pass
 
         except TypeError:
             pass
@@ -183,40 +190,6 @@ def checkVisibility(leftVisibility: list, rightVisibility: list):
 
     # print(visibility)
     return visibility
-
-
-# _____________________________________________________________________________
-class Exercise:
-    """
-    This is the Exercise Class:
-    The Attributes in the 8 Locations of interest are represented as tuples here
-    (minimum expected angle, maximum EA, target EA)
-
-    Bicep Curls and Single Arm Bicep Curls both use the same base angles, 
-     so that distinction is made with the Boolean mirrored variable
-    
-    The Specific Positioning is how I will check these exercises in the trackLocation function 
-     """
-
-    def __init__(self, name,
-                 lpit, lelbow, lhip, lknee,
-                 rpit, relbow, rhip, rknee,
-                 mirrored=True,
-                 specificPositioning=None):
-        """
-        Each exercise will have its own set of angles, and other attributes
-        """
-        self.name = name
-        self.leftAngles = [lpit, lelbow, lhip, lknee]
-        self.rightAngles = [rpit, relbow, rhip, rknee]
-        self.mirrored = mirrored
-        self.specific = specificPositioning
-
-    def exerciseLeftAngles(self):
-        return self.leftAngles
-
-    def exerciseRightAngles(self):
-        return self.rightAngles
     
     
 def trackLocation(specifcPositioning, loc: list):
@@ -224,8 +197,6 @@ def trackLocation(specifcPositioning, loc: list):
     Loc:
     # 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12,
     # 0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28
-
-    Elbow Angle, Shoulder Angle, Hip Angle, Knee Angle
 
     Nose 0, 
     0
@@ -242,134 +213,267 @@ def trackLocation(specifcPositioning, loc: list):
 
     """
     checking = False
-    for pos in loc:
-        if specifcPositioning == 0:
-            if (pos[0] % 2 != 0) and (pos[0] != 27):
-                if loc[12][1] <= pos[1]:
-                    pass
-            elif (pos[0] % 2 == 0) and (pos[0] != 28):
-                if pos[1] <= loc[11][1]:
-                    pass
         
-            pass
-        if specifcPositioning == 1:
-            pass
-        if specifcPositioning == 2:
-            pass
-        if specifcPositioning == 3:
-            pass
-        if specifcPositioning == 4:
-            pass
-        if specifcPositioning == 5:
-            pass
-        if specifcPositioning == 6:
-            pass
-        if specifcPositioning == 7:
-            pass
-        if specifcPositioning == 8:
-            pass
-        if specifcPositioning == 9:
-            pass
-        if specifcPositioning == 10:
-            pass
+    if specifcPositioning == 0:
+        legOut = [True, True]
+        for pos in loc:
+            if pos[0] != 27 or pos[0] != 28:
+                leftAnkleX = loc[11][1]
+                rightAnkleX = loc[12][1]
+                # If the LEFT or RIGHT leg is not the furthest out, then the loop will return False
+                if pos[0] % 2 != 0 and pos[0] != 27:
+                    if pos[1] < leftAnkleX:
+                        pass
+                    else:
+                        legOut[0] = False
+                elif pos[0] % 2 == 0 and pos[0] != 28:
+                    if rightAnkleX < pos[1]:
+                        pass
+                    else:
+                        legOut[1] = False
+
+        # If the loop makes it to this point without leaving, this exercise is returned as True
+        # print(legOut)
+        if True in legOut:
+            #print("Left Ankle Is Out") if legOut[0] is True else print("Right Ankle Is Out") 
+            checking = True
+
+    elif specifcPositioning == 1:
+        noseHeight = int(loc[0][2])
+        avgShoulderHeight = (int(loc[1][2]) + int(loc[2][2])) // 2
+        avgWristHeight = (int(loc[5][2]) + int(loc[6][2])) // 2
+        avgElbowHeight = (int(loc[3][2]) + int(loc[4][2])) // 2
+
+        if noseHeight < avgShoulderHeight < avgElbowHeight and \
+            noseHeight < avgWristHeight < avgElbowHeight:
+            checking = True
+
+    elif specifcPositioning == 2:
+        noseHeight = int(loc[0][2])
+        LeftWristHeight = int(loc[5][2])
+        RightWristHeight = int(loc[6][2])
+        avgElbowHeight = (int(loc[3][2]) + int(loc[4][2])) // 2
+
+        if noseHeight < LeftWristHeight < avgElbowHeight and \
+            noseHeight < RightWristHeight < avgElbowHeight:
+            checking = True
+
+        checking = True
+    elif specifcPositioning == 3:
+        noseHeight = int(loc[0][2])
+        avgShoulderHeight = (int(loc[1][2]) + int(loc[2][2])) // 2
+        leftWristHeight = int(loc[5][2])
+        rightWristHeight = int(loc[6][2])
+        avgElbowHeight = (int(loc[3][2]) + int(loc[4][2])) // 2
+
+        if ((avgShoulderHeight < avgElbowHeight < leftWristHeight) and (noseHeight < rightWristHeight < avgElbowHeight)) \
+            or ((avgShoulderHeight < avgElbowHeight < rightWristHeight) and (noseHeight < leftWristHeight < avgElbowHeight)):
+            checking = True
+
+    elif specifcPositioning == 4:
+        noseHeight = int(loc[0][2])
+
+        leftWristX = int(loc[5][1])
+        rightWristX = int(loc[6][1])
+        avgWristHeight = (int(loc[5][2]) + int(loc[6][2])) // 2
+
+        leftShoulderX = int(loc[1][1])
+        rightShoulderX = int(loc[2][1])
+        avgHipShoulderMidHeight = ((int(loc[1][2]) + int(loc[2][2])) + (int(loc[7][2]) + int(loc[8][2]))) // 4
+
+        leftElbowX = int(loc[3][1])
+        rightElbowX = int(loc[4][1])
+        avgElbowHeight = (int(loc[3][2]) + int(loc[4][2])) // 2
+        
+        if rightWristX < rightElbowX < rightShoulderX and \
+            leftShoulderX < leftElbowX < leftWristX and \
+            noseHeight < avgWristHeight < avgHipShoulderMidHeight and \
+            noseHeight < avgElbowHeight < avgHipShoulderMidHeight:
+            checking = True
+
+    elif specifcPositioning == 5:
+        noseHeight = int(loc[0][2])
+
+        leftWristX = int(loc[5][1])
+        rightWristX = int(loc[6][1])
+        leftWristHeight = int(loc[5][2])
+        rightWristHeight = int(loc[6][2])
+
+        leftShoulderX = int(loc[1][1])
+        rightShoulderX = int(loc[2][1])
+        avgHipShoulderMidHeight = ((int(loc[1][2]) + int(loc[2][2])) + (int(loc[7][2]) + int(loc[8][2]))) // 4
+
+        leftElbowX = int(loc[3][1])
+        rightElbowX = int(loc[4][1])
+        avgElbowHeight = (int(loc[3][2]) + int(loc[4][2])) // 2
+        
+        if (rightWristX < rightElbowX < rightShoulderX or \
+            leftShoulderX < leftElbowX < leftWristX) and \
+            (noseHeight < leftWristHeight < avgHipShoulderMidHeight or \
+            noseHeight < rightWristHeight < avgHipShoulderMidHeight):
+            checking = True
+
+    elif specifcPositioning == 6:
+        noseHeight = int(loc[0][2])
+
+        leftWristX = int(loc[5][2])
+        rightWristX = int(loc[6][2])
+        avgWristHeight = (int(loc[5][2]) + int(loc[6][2])) // 2
+
+        leftShoulderX = int(loc[1][1])
+        rightShoulderX = int(loc[2][1])
+        avgHipShoulderMidHeight = ((int(loc[1][2]) + int(loc[2][2])) + (int(loc[7][2]) + int(loc[8][2]))) // 4
+
+        leftElbowX = int(loc[3][1])
+        rightElbowX = int(loc[4][1])
+        avgElbowHeight = (int(loc[3][2]) + int(loc[4][2])) // 2
+        
+        if noseHeight < avgWristHeight < avgHipShoulderMidHeight and \
+            noseHeight < avgElbowHeight < avgHipShoulderMidHeight:
+            checking = True
+
+    elif specifcPositioning == 7:
+        noseHeight = int(loc[0][2])
+
+        leftWristX = int(loc[5][2])
+        rightWristX = int(loc[6][2])
+        avgWristHeight = (int(loc[5][2]) + int(loc[6][2])) // 2
+
+        leftShoulderX = int(loc[1][1])
+        rightShoulderX = int(loc[2][1])
+        avgHipShoulderMidHeight = ((int(loc[1][2]) + int(loc[2][2])) + (int(loc[7][2]) + int(loc[8][2]))) // 4
+
+        leftElbowX = int(loc[3][1])
+        rightElbowX = int(loc[4][1])
+        avgElbowHeight = (int(loc[3][2]) + int(loc[4][2])) // 2
+        
+        if noseHeight < avgWristHeight < avgHipShoulderMidHeight or \
+            noseHeight < avgElbowHeight < avgHipShoulderMidHeight:
+            checking = True
+
+    elif specifcPositioning == 8:
+        noseHeight = int(loc[0][2])
+
+        leftWristX = int(loc[5][2])
+        rightWristX = int(loc[6][2])
+        avgWristHeight = (int(loc[5][2]) + int(loc[6][2])) // 2
+
+        leftShoulderX = int(loc[1][1])
+        rightShoulderX = int(loc[2][1])
+        #avgHipShoulderMidHeight = ((int(loc[1][2]) + int(loc[2][2])) + (int(loc[7][2]) + int(loc[8][2]))) // 4
+
+        avgElbowHeight = (int(loc[3][2]) + int(loc[4][2])) // 2
+        
+        if rightShoulderX < rightWristX < leftWristX < leftShoulderX:
+            if noseHeight < avgWristHeight < avgElbowHeight:
+               checking = True
+
+    elif specifcPositioning == 9:
+        noseHeight = int(loc[0][2])
+        avgWristHeight = (int(loc[5][2]) + int(loc[6][2])) // 2
+        avgElbowHeight = (int(loc[3][2]) + int(loc[4][2])) // 2
+        
+        if avgWristHeight < noseHeight < avgElbowHeight:
+            checking = True
+
+    elif specifcPositioning == 10:
+        noseHeight = int(loc[0][2])
+        leftWristHeight = int(loc[5][2]) 
+        rightWristHeight = int(loc[6][2])
+        leftElbowHeight = int(loc[3][2]) 
+        rightElbowHeight = int(loc[4][2])
+
+        if leftWristHeight < noseHeight < leftElbowHeight or \
+            rightWristHeight < noseHeight < rightElbowHeight:
+            checking = True
+
+    return checking
 
 
+# _____________________________________________________________________________
+class Exercise:
+    """
+    This is the Exercise Class:
+    The Attributes in the 8 Locations of interest are represented as tuples here
+    (minimum expected angle, maximum EA, target EA)
 
-    if checking is False:
-        return False
-    else:
-        return True
+    Bicep Curls and Single Arm Bicep Curls both use the same base angles, 
+     so that distinction is made with the Boolean mirrored variable
+    
+    The Specific Positioning is how I will check these exercises in the trackLocation function 
+     """
+
+    def __init__(self, name,
+                 pit, elbow, hip, knee,
+                 mirrored=True,
+                 specificPositioning: int=None,
+                 skipFull: list=None):
+        """
+        Each exercise will have its own set of angles, and other attributes
+        """
+        self.name = name
+        self.angles = [pit, elbow, hip, knee]
+        self.mirrored = mirrored
+        self.specific = specificPositioning
+        self.sFull = skipFull
+
+    def exerciseAngles(self):
+        return self.angles
+
 
 abductorLegRaises = Exercise("Abductor Leg Raises",
-                             (0, 180, 180), (0, 180, 180), (90, 180, 150), (160, 180, 180),
-                             (0, 180, 180), (0, 180, 180), (90, 180, 135), (160, 180, 180),
+                             (0, 135), (0, 150), (130, 155), (170, 180),
                              False, 0)
 
 barbellSquats = Exercise("Barbell Squats",
-                         (75, 110, 110), (15, 110, 110), (0, 150, 150), (0, 150, 150),
-                         (15, 110, 110), (15, 110, 110), (0, 150, 150), (0, 150, 150),
-                         True, 1)
+                         (30, 90), (75, 150), (0, 135), (0, 135),
+                         True, 1, [0, 1])
 
 bicepCurls = Exercise("Bicep Curls",
-                      (0, 110, 75), (0, 45, 45), (120, 180, 180), (120, 180, 180),
-                      (0, 110, 75), (0, 45, 45), (120, 180, 180), (120, 180, 180),
+                      (0, 30), (0, 90), (160, 180), (160, 180),
                       True, 2)
+singleArmBicepCurls = Exercise("Single Arm Bicep Curls",
+                               (0, 30), (0, 90), (160, 180), (160, 180),
+                               False, 3)
 
 deltoidArmRaises = Exercise("Deltoid Arm Raises",
-                        (45, 110, 90), (150, 180, 180), (150, 180, 180), (120, 180, 180),
-                        (45, 110, 90), (150, 180, 180), (150, 180, 180), (120, 180, 180),
-                        True, 3)
+                            (75, 135), (160, 180), (160, 180), (160, 180),
+                            True, 4)
+singleArmDeltoidRaises = Exercise("Single Arm Deltoid Raises",
+                                  (75, 135), (160, 180), (160, 180), (160, 180),
+                                  False, 5)
 
 frontLatRaises = Exercise("Front Lat Raises",
-                        (0, 110, 90), (120, 180, 180), (120, 180, 180), (120, 180, 180),
-                        (0, 110, 90), (120, 180, 180), (120, 180, 180), (120, 180, 180),
-                        True, 4)
+                          (75, 135), (160, 180), (160, 180), (160, 180),
+                          True, 6)
+singleArmFrontLatRaises = Exercise("Single Arm Front Lat Raises",
+                                   (75, 135), (160, 180), (160, 180), (160, 180),
+                                   False, 7)
 
 gobletSquats = Exercise("Goblet Squats",
-                        (0, 30, 30), (0, 50, 50), (0, 150, 150), (0, 150, 150),
-                        (0, 30, 30), (0, 50, 50), (0, 150, 150), (0, 150, 150),
-                        True, 5)
+                        (0, 20), (0, 45), (0, 135), (0, 135),
+                        True, 8)
 
 shoulderPress = Exercise("Shoulder Press",
-                        (30, 180, 110), (60, 110, 90), (120, 180, 180), (120, 180, 180),
-                        (30, 180, 110), (60, 110, 90), (120, 180, 180), (120, 180, 180),
-                        True, 6)
-
-singleArmBicepCurls = Exercise("Single Arm Bicep Curls",
-                               (0, 110, 75), (0, 45, 45), (120, 180, 180), (120, 180, 180),
-                               (0, 110, 75), (0, 45, 45), (120, 180, 180), (120, 180, 180),
-                               False, 7)
-
-singleArmDeltoidRaises = Exercise("Single Arm Deltoid Raises",
-                        (45, 110, 90), (150, 180, 180), (150, 180, 180), (120, 180, 180),
-                        (45, 110, 90), (150, 180, 180), (150, 180, 180), (120, 180, 180),
-                        False, 8)
-
-singleArmFrontLatRaises = Exercise("Single Arm Front Lat Raises",
-                        (0, 110, 90), (120, 180, 180), (120, 180, 180), (120, 180, 180),
-                        (0, 110, 90), (120, 180, 180), (120, 180, 180), (120, 180, 180),
-                        False, 9)
-
+                         (80, 180), (80, 180), (160, 180), (160, 180),
+                         True, 9)
 singleArmShoulderPress = Exercise("Single Arm Shoulder Press",
-                        (30, 180, 110), (60, 180, 90), (120, 180, 180), (120, 180, 180),
-                        (30, 180, 110), (60, 180, 90), (120, 180, 180), (120, 180, 180),
-                        False, 10)
+                                  (80, 180), (80, 180), (160, 180), (160, 180),
+                                  False, 10)
 
 
-exercises = {abductorLegRaises: [abductorLegRaises.exerciseLeftAngles(),
-                                 abductorLegRaises.exerciseRightAngles()],
+exercises = [abductorLegRaises,
+             #barbellSquats,
+             bicepCurls,                                    
+             singleArmBicepCurls,
+             deltoidArmRaises,
+             singleArmDeltoidRaises,
+             frontLatRaises,          
+             singleArmFrontLatRaises,
+             gobletSquats,
+             shoulderPress,
+             singleArmShoulderPress]
 
-             barbellSquats: [barbellSquats.exerciseLeftAngles(),
-                             barbellSquats.exerciseRightAngles()],
-             
-             bicepCurls: [bicepCurls.exerciseLeftAngles(),
-                          bicepCurls.exerciseRightAngles()],
-
-             deltoidArmRaises: [deltoidArmRaises.exerciseLeftAngles(),
-                               deltoidArmRaises.exerciseRightAngles()],
-
-             frontLatRaises: [frontLatRaises.exerciseLeftAngles(),
-                              frontLatRaises.exerciseRightAngles()],
-
-             gobletSquats: [gobletSquats.exerciseLeftAngles(),
-                            gobletSquats.exerciseRightAngles()],
-             
-             shoulderPress: [shoulderPress.exerciseLeftAngles(),
-                             shoulderPress.exerciseRightAngles()],
-
-             singleArmBicepCurls: [singleArmBicepCurls.exerciseLeftAngles(),
-                                   singleArmBicepCurls.exerciseRightAngles()],
-             
-             singleArmDeltoidRaises: [singleArmDeltoidRaises.exerciseLeftAngles(),
-                                      singleArmDeltoidRaises.exerciseRightAngles()],
-             
-             singleArmFrontLatRaises: [singleArmFrontLatRaises.exerciseLeftAngles(),
-                                       singleArmFrontLatRaises.exerciseRightAngles()],
-
-
-             singleArmShoulderPress: [singleArmShoulderPress.exerciseLeftAngles(),
-                                      singleArmShoulderPress.exerciseRightAngles()]
-             }
 
 # _____________________________________________________________________________
 def detectExercise(leftAngles, rightAngles, loc):
@@ -392,108 +496,104 @@ def detectExercise(leftAngles, rightAngles, loc):
     Maximum range: [1]  
     """
  
-    potentialExercises = []
+    pE = []
     mirrored = {}
     angles = leftAngles, rightAngles
     for exercise in exercises:
-
+        #print('\n\n', exercise.name)
         try:
-            mirrored[exercise.name] = [False, False]
+            mirrored[exercise.name] = [True, True]
             for sub in range(2):
                 # The name of the exercise is stored in the mirrored dictionary
                 #  As the loop iterates twice
                 #   If the currentAngle is between that of the exercise being checked, 
-                #    the left or right False will become True
+                #    the left or right print False will stay True
                 #   That tells me if the exercise being done is, well, mirrored 
-                if (exercises[exercise][sub][0][0] <= angles[sub][0][1] <= exercises[exercise][sub][0][1] and
-                        exercises[exercise][sub][1][0] <= angles[sub][1][1] <= exercises[exercise][sub][1][1] and
-                        exercises[exercise][sub][2][0] <= angles[sub][2][1] <= exercises[exercise][sub][2][1] and
-                        exercises[exercise][sub][3][0] <= angles[sub][3][1] <= exercises[exercise][sub][3][1]):
-                    mirrored[exercise.name][sub] = True
-                    if exercise not in potentialExercises:
-                        potentialExercises.append(exercise)
+                for point in range(4):
+                    # point loops though the shoulder, elbow, hip, and knee angles
+                    if exercise.angles[point][0] <= angles[sub][point][1] <= exercise.angles[point][1]:
+                        #print('\nTrue', sub, point, 
+                        #        exercise.angles[point][0], "<=", angles[sub][point][1], "<=", exercise.angles[point][1])
+                        pass
+                    else:
+                        #print('\nFalse', sub, point, 
+                        #        exercise.angles[point][0], "<=", angles[sub][point][1], "<=", exercise.angles[point][1])
+                        mirrored[exercise.name][sub] = False
+                        
+            if True in mirrored[exercise.name]:
+                pE.append(exercise)
+                #print(exercise.name,mirrored[exercise.name])
+
         except IndexError:
             pass
 
-    for exer in potentialExercises:
-
-        # check if exer returns True in the trackLocation function
-        # If True it will pass
-        # If False it will remove that exercise
-        if trackLocation(exer.specificPositioning, loc):
-            pass
-        else:
-            pass
+    #print('\n1', [x.name for x in pE],
+    #      '\n', angles)
     
+    _pE = [x for x in pE]
+    pE = []
+    for sub, exer in enumerate(_pE):
         a, b = mirrored[exer.name]
-        if exer.mirrored is True:
-            if a == b:
-                pass
-            else:
-                potentialExercises.remove(exer)
-
+        if (a is True and b is True) and exer.mirrored is True:
+            pE.append(exer)
+        elif (a is False or b is False) and exer.mirrored is False: 
+            pE.append(exer)
         else:
-            if a == b:
-                potentialExercises.remove(exer)
-            else:
-                pass
+            pass
+
+    _pE = []
+    #print('\nLoc:', loc, '\n')
+    for exer in pE:
+        if trackLocation(exer.specific, loc) is True:
+            #print(exer.name, 'has potential')
+            _pE.append(exer)
+        else:
+            pass
 
     try:
-        # If there is more than one exercise in the list, then it will pass
-        exName = potentialExercises[0]
-        return exName.name, exName
+        #print("\nExercise Check")
+        #print('\n4', [x.name for x in _pE])
+        #input("Press Enter For Next Check")
+        # If there is more than one exercise in the list, then it will pass and check against a new list
+        if len(_pE) == 1:
+            #print(_pE[0].name)
+            return True, _pE
+        elif 1 < len(_pE):
+            #print(x.name for x in _pE)
+            return False, _pE
     except IndexError:
         pass
 
+    return False, []
+
 
 # _____________________________________________________________________________
-def detectRepetitions(confirmedExercise, leftAngles, rightAngles, loc=None, exName=None):
-    # print(f"\nDetecting Reps For: {confirmedExercise}\n")
+def detectRepetitions(leftAngles, rightAngles, exName: Exercise=None):
+    # print(f"\nDetecting Reps For: {exName.name}\n")
+    #input("Wait Here1")
     try:
         currentAngle = leftAngles, rightAngles
-        _exName = [exName.exerciseLeftAngles(), exName.exerciseRightAngles()]
-
-        reps = [False, False]
-        # Display for a visual of the angles at work
-#       
-        majorPoints = [{"Shoulder": [currentAngle[0][0][1], currentAngle[1][0][1]]}, 
-                       {"Elbow": [currentAngle[0][1][1], currentAngle[1][1][1]]}, 
-                       {"Hip": [currentAngle[0][2][1], currentAngle[1][2][1]]}, 
-                       {"Knee": [currentAngle[0][3][1], currentAngle[0][1][1]]}]
-
-        print(confirmedExercise, majorPoints)
+        reps = [True, True]
 
         for sub in range(2):
-            if _exName[sub][0][0] <= currentAngle[sub][0][1] <= _exName[sub][0][2] and \
-                    _exName[sub][1][0] <= currentAngle[sub][1][1] <= _exName[sub][1][2] and \
-                    _exName[sub][2][0] <= currentAngle[sub][2][1] <= _exName[sub][2][2] and \
-                    _exName[sub][3][0] <= currentAngle[sub][3][1] <= _exName[sub][3][2]:
-                reps[sub] = True
-            else:
-                reps[sub] = False
+            for point in range(4):
+                # point loops though the shoulder, elbow, hip, and knee angles
+                #print(exName.angles[point][0], '<=', currentAngle[sub][point][1], '<=', exName.angles[point][1])
+                if exName.angles[point][0] <= currentAngle[sub][point][1] <= exName.angles[point][1]:
+                    pass
+                else:
+                    reps[sub] = False
+                
 
-        # print(reps)
-        if reps[0] is True or reps[1] is True:
-            return [True, majorPoints]
+        if reps[0] is True and reps[1] is True and exName.mirrored is True:
+            return True
+        elif reps[0] is True or reps[1] is True and exName.mirrored is False:
+            return True
         else:
-            return [False, majorPoints]
+           return False
+
     except IndexError:
-        pass
-
-
-# _____________________________________________________________________________
-def trackMovement(num, xcor, ycor):
-    # Nose, leftShoulder, leftElbow, leftWrist, rightShoulder, rightElbow, rightWrist,
-    # leftHip, leftKnee, leftAnkle, rightHip, rightKnee, rightAnkle
-    # if num == 0:
-    #     pass
-    return
-
-
-# _____________________________________________________________________________
-def trackAngles(leftAngles, rightAngles):
-    return
-
+        return False
 
 # _____________________________________________________________________________
 def displayText(img, txt, location: tuple, size=1, color=(255, 0, 0), thickness=3):

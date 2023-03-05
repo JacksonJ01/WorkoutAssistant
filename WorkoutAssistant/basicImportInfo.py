@@ -1,10 +1,21 @@
 from workoutDatabase import *
+
+from cameraFunct import *
+
+from sys import argv, exit as Exit
+
+from PyQt5.QtCore import pyqtSignal, pyqtSlot, QDate, QPropertyAnimation, QSize, Qt, QThread
+from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtWidgets import QApplication, QDateEdit, QGridLayout, QLabel, QLineEdit, QMainWindow, QPushButton, QTableView, QTimeEdit, QTableWidget, QWidget
-from PyQt5.QtCore import pyqtSignal, pyqtSlot, QDate, Qt, QThread
- 
-winXPos, winYPos = 0, 0
-winLength, winHeight = 1080, 640
-defaultCam = 0
+
+#winXPos, winYPos = 0, 0
+#screenRes = QApplication([])
+#screenRes = screenRes.desktop().screenGeometry()
+#winLength, winHeight = screenRes.width(), screenRes.height()
+
+#input(f'{winLength, winHeight}')
+
+defaultCam = 11
 
 #from PySide import QtGui
 
