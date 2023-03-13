@@ -127,22 +127,22 @@ class Controller:
            self.accountCreation.close()
         except:
             pass
-        try:
-            self.database.close()
-        except:
-            pass
-        try:
-           self.chatBot.close()
-        except:
-            pass
+        #try:
+        #    self.database.close()
+        #except:
+        #    pass
+        #try:
+        #   self.chatBot.close()
+        #except:
+        #    pass
         try:
            self.workOut.close()
         except:
             pass
         
         self.mainMenuWindow = MainMenuWindow()
-        self.mainMenuWindow.switchToDatabaseWindow.connect(self.showDatabaseWindow)
-        self.mainMenuWindow.switchToChatBotWindow.connect(self.showChatBot)
+        #self.mainMenuWindow.switchToDatabaseWindow.connect(self.showDatabaseWindow)
+        #self.mainMenuWindow.switchToChatBotWindow.connect(self.showChatBot)
         self.mainMenuWindow.switchToWorkoutWindow.connect(self.showWorkout)
         
         self.mainMenuWindow.showMaximized()
@@ -178,8 +178,8 @@ def main():
     #controller.showSignIn()
     #controller.showSignUp()
     #controller.showAccountCreation()
-    #controller.showMainMenu()
-    controller.showWorkout()
+    controller.showMainMenu()
+    #controller.showWorkout()
 
     #controller.showDatabaseWindow()
     #controller.showExerciseDatabaseWindow()

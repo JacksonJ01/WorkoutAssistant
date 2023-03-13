@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import QApplication, QDateEdit, QGridLayout, QLabel, QLineE
 
 #input(f'{winLength, winHeight}')
 
-defaultCam = 11
+defaultCam = 12
 
 #from PySide import QtGui
 
